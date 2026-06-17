@@ -1,114 +1,93 @@
 const express = require("express");
 const app = express();
 
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// In-memory storage
 let feedbacks = [];
-let id = 1;
+let nextId = 1;
 
-// 1. Home Page (Form)
+/* HOME PAGE */
 app.get("/", (req, res) => {
     res.send(`
         <h2>Customer Feedback Form</h2>
 
-        <form action="/submit" method="POST">
-            Name: <input type="text" name="name" required /> <br><br>
+        <form action="/feedback" method="POST">
+            <input type="text" name="name" placeholder="Enter Name" required>
+            <br><br>
 
-            Message: <br>
-            <textarea name="message" required></textarea> <br><br>
+            <textarea name="message" placeholder="Enter Feedback" required></textarea>
+            <br><br>
 
-            <button type="submit">Submit</button>
+            <button type="submit">Submit Feedback</button>
         </form>
 
         <br>
-        <a href="/admin">Go to Admin Panel</a>
+        <a href="/admin">View All Feedback</a>
     `);
 });
 
-// 2. Submit Feedback
-app.post("/submit", (req, res) => {
+/* CREATE - POST */
+app.post("/feedback", (req, res) => {
     const { name, message } = req.body;
 
-    feedbacks.push({
-        id: id++,
+    const feedback = {
+        id: nextId++,
         name,
         message
-    });
+    };
 
-    res.redirect("/admin");
+    feedbacks.push(feedback);
+
+    res.send("Feedback Submitted Successfully! <br><a href='/admin'>View Feedback</a>");
 });
 
-// 3. Admin Panel (View all feedback)
+
+/* READ - GET */
 app.get("/admin", (req, res) => {
-
-    let list = feedbacks.map(f => `
-        <li>
-            <b>${f.name}</b>: ${f.message}
-            <a href="/edit/${f.id}">Edit</a>
-            <a href="/delete/${f.id}">Delete</a>
-        </li>
-    `).join("");
-
-    res.send(`
-        <h2>Admin Panel</h2>
-
-        <a href="/">Go to Form</a>
-
-        <ul>
-            ${list}
-        </ul>
-    `);
+    res.json(feedbacks);
 });
 
-// 4. Delete Feedback
-app.get("/delete/:id", (req, res) => {
-    const fid = parseInt(req.params.id);
-    feedbacks = feedbacks.filter(f => f.id !== fid);
+/* UPDATE - PUT */
+app.put("/feedback/:id", (req, res) => {
+    const id = parseInt(req.params.id);
 
-    res.redirect("/admin");
-});
+    const feedback = feedbacks.find(f => f.id === id);
 
-// 5. Edit Page
-app.get("/edit/:id", (req, res) => {
-    const fid = parseInt(req.params.id);
-    const fb = feedbacks.find(f => f.id === fid);
+    if (!feedback) {
+        return res.status(404).json({
+            message: "Feedback Not Found"
+        });
+    }
 
-    res.send(`
-        <h2>Edit Feedback</h2>
+    feedback.name = req.body.name || feedback.name;
+    feedback.message = req.body.message || feedback.message;
 
-        <form action="/update/${fb.id}" method="POST">
-            Name:
-            <input type="text" name="name" value="${fb.name}" required />
-
-            <br><br>
-
-            Message:
-            <textarea name="message" required>${fb.message}</textarea>
-
-            <br><br>
-
-            <button type="submit">Update</button>
-        </form>
-    `);
-});
-
-// 6. Update Feedback
-app.post("/update/:id", (req, res) => {
-    const fid = parseInt(req.params.id);
-    const { name, message } = req.body;
-
-    feedbacks = feedbacks.map(f => {
-        if (f.id === fid) {
-            return { id: fid, name, message };
-        }
-        return f;
+    res.json({
+        message: "Feedback Updated",
+        feedback
     });
-
-    res.redirect("/admin");
 });
 
-// Start Server
+/* DELETE - DELETE */
+app.delete("/feedback/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    const index = feedbacks.findIndex(f => f.id === id);
+
+    if (index === -1) {
+        return res.status(404).json({
+            message: "Feedback Not Found"
+        });
+    }
+
+    feedbacks.splice(index, 1);
+
+    res.json({
+        message: "Feedback Deleted"
+    });
+});
+
 app.listen(3000, () => {
     console.log("Server running on http://localhost:3000");
 });
